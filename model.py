@@ -1,21 +1,23 @@
 from keras.models import Sequential
 
 import numpy as np
+import random as rand
 import cv2
 import logging
 import csv
 from keras.layers import Dense, Activation, Reshape
 from keras.layers.core import Flatten, Reshape, Dropout, Lambda
 from keras.layers.convolutional import Convolution2D, Conv2D
+from keras.layers.pooling import MaxPooling2D, AveragePooling1D
 from keras.optimizers import Adam, SGD
 from keras.callbacks import Callback as KerasCallback
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
-SENSOR_DATA_DIRECTORY = 'C:/Users/Derek/Source/Repos/torcs-1.3.7/runtimed/'
+SENSOR_DATA_DIRECTORY = 'C:/Users/Paperspace/project/torcs-1.3.7/runtimed/'
 SENSOR_CSV_FILE = 'sensors.csv'
 
-IMAGE_DATA_DIRECTORY = 'C:/Users/Derek/Source/Repos/torcs-1.3.7/runtimed/images/'
+IMAGE_DATA_DIRECTORY = 'C:/Users/Paperspace/project/torcs-1.3.7/runtimed/images/'
 INPUT_IMAGE_FORMAT = '.bmp'
 
 STEERING_ANGLE_COLUMN = 'steer'
@@ -28,18 +30,21 @@ CROPPED_IMAGE_HEIGHT = 320
 STEERING_BOUNDARY = 0.00005
 STRAIGHT_DRIVING_INCLUSION_RATE = 10
 
+
 """
 Retrieve sensor data from torcs-1.3.7;
 Discards most samples with minimal steering input according to STEERING_BOUNDARY and STRAIGHT_DRIVING_INCLUSION_RATE 
 Returns:
-    sensor_data_tuples: a list of tuples each containing pairs of:
-        1) steering angle
-        2) corresponding image path
+    1) list of steering angles (floats)
+    2) list of image files (strings)
 """
+
+
 def load_sensor_data():
 
     logging.info(' Retrieving sensor data from ' + SENSOR_DATA_DIRECTORY + SENSOR_CSV_FILE)
-    sensor_data_tuples = []
+    steering_data_list = []
+    image_file_list = []
 
     with open(SENSOR_DATA_DIRECTORY + SENSOR_CSV_FILE) as sensor_data_csv:
         sensor_data_reader = csv.DictReader(sensor_data_csv, dialect="excel")
@@ -64,14 +69,16 @@ def load_sensor_data():
 
                 if straight_driving_image_count == STRAIGHT_DRIVING_INCLUSION_RATE:
 
-                    sensor_data_tuples.append((steering_angle, row[IMAGE_FILE_COLUMN] + INPUT_IMAGE_FORMAT))
+                    steering_data_list.append(steering_angle)
+                    image_file_list.append(row[IMAGE_FILE_COLUMN] + INPUT_IMAGE_FORMAT)
                     straight_driving_image_count = 0
 
             else:
 
-                sensor_data_tuples.append((steering_angle, row[IMAGE_FILE_COLUMN] + INPUT_IMAGE_FORMAT))
+                steering_data_list.append(steering_angle)
+                image_file_list.append(row[IMAGE_FILE_COLUMN] + INPUT_IMAGE_FORMAT)
 
-    return sensor_data_tuples
+    return steering_data_list, image_file_list
 
 
 """
@@ -81,60 +88,192 @@ Args:
 Returns:
     a Numpy array of image data corresponding to each image
 """
-def load_images(image_files):
 
-    logging.info(' Loading images... ')
+
+def load_images(steering_angles, image_files):
+
+    logging.info(' Loading images from ' + IMAGE_DATA_DIRECTORY)
     y_start = INPUT_IMAGE_HEIGHT - CROPPED_IMAGE_HEIGHT
     x_start = 0
     image_data_set = []
+    count = 0;
 
     for current_image in image_files:
 
-            image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.IMREAD_GRAYSCALE)
-            cropped_image = image[y_start:INPUT_IMAGE_HEIGHT, x_start:INPUT_IMAGE_WIDTH]
-            image_data_set.append(cropped_image)
+        count += 1
+        image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.IMREAD_GRAYSCALE)
 
-    return np.array(image_data_set)
+        if image is None:
+            del steering_angles[count]
+            continue
+
+        cropped_image = image[y_start:INPUT_IMAGE_HEIGHT, x_start:INPUT_IMAGE_WIDTH]
+        downsize_image = cv2.resize(cropped_image, (0,0), fx=0.5, fy=0.5)
+        image_data_set.append(downsize_image)
+
+    return steering_angles, np.array(image_data_set)
+
+
+'''
+Partition training data into a training set and validation set
+Args:
+    training_data: list of lists of size two containing training data, e.g. [image_data_list, steering_angles_list]
+    test_proportion: value between 0 and 1 that determines the index on which the data lists are split
+Returns:
+    1) train_set: [image_data_list, steering_angles_list] up to the index defined by the test_proportion
+    2) valid_set: [image_data_list, steering_angles_list] of the remaining indices
+'''
 
 
 def partition_training_data(training_data, test_proportion):
 
     logging.info(' Partitioning training data... ')
     training_set_count = int((1.0-test_proportion)*len(training_data[0]))
-    train_set = [training_data[0:training_set_count] for list in training_data]
-    valid_set = [training_data[training_set_count:] for list in training_data]
+    train_set = [list[0:training_set_count] for list in training_data]
+    valid_set = [list[training_set_count:] for list in training_data]
     return train_set, valid_set
 
 
-"""
-Shuffle image and steering angle lists (indexing)
-Args:
-    training_data: list of lists of equal length
-Returns:
-    list of shuffled lists
-"""
-def shuffle_data(training_data):
+def augment_generator(images_arr, steering_arr, batch_size):
 
-    permuted_sequence = np.random.permutation(len(training_data[0]))
-    return [training_data[permuted_sequence] for list in training_data]
+    logging.info(' Generating augmented data...')
+    last_index = len(images_arr) - 1
+
+    while 1:
+        batch_img = []
+        batch_steering = []
+
+        for i in range(batch_size):
+
+            idx_img = rand.randint(0, last_index)
+            im, steering = augment_record(images_arr[idx_img], steering_arr[idx_img])
+            batch_img.append(im)
+            batch_steering.append(steering)
+
+        batch_img = np.asarray(batch_img)
+        batch_steering = np.asarray(batch_steering)
+        yield (batch_img, batch_steering)
 
 
-sensor_data = load_sensor_data()
-steering_angles, image_paths = zip(*sensor_data)
+def augment_record(im, steering):
+    im = augment_image(im)
+    if rand.uniform(0, 1) > 0.5:
+        im = cv2.flip(im, 1)
+        steering = - steering
+    steering = steering + np.random.normal(0, 0.005)
+    return im, steering
 
-steering_angles = np.asarray(steering_angles)
-image_data = load_images(image_paths)
 
-#TODO: Pooling/Dropout Layers?
+def augment_image(image):
+    image = np.copy(image)
+
+    (h, w) = image.shape[:2]
+
+    # randomize brightness
+    brightness = rand.uniform(-0.3, 0.3)
+    image = np.add(image, brightness)
+
+    # random squares
+    rect_w = 25
+    rect_h = 25
+    rect_count = 30
+    for i in range(rect_count):
+        pt1 = (rand.randint(0, w), rand.randint(0, h))
+        pt2 = (pt1[0] + rect_w, pt1[1] + rect_h)
+        cv2.rectangle(image, pt1, pt2, (-0.5, -0.5, -0.5), -1)
+
+    # rotation and scaling
+    rot = 1
+    scale = 0.02
+    Mrot = cv2.getRotationMatrix2D((h / 2, w / 2), rand.uniform(-rot, rot), rand.uniform(1.0 - scale, 1.0 + scale))
+
+    # affine transform and shifts
+    pts1 = np.float32([[0, 0], [w, 0], [w, h]])
+    a = 0
+    shift = 2
+    shiftx = rand.randint(-shift, shift);
+    shifty = rand.randint(-shift, shift);
+    pts2 = np.float32([[
+        0 + rand.randint(-a, a) + shiftx,
+        0 + rand.randint(-a, a) + shifty
+    ], [
+        w + rand.randint(-a, a) + shiftx,
+        0 + rand.randint(-a, a) + shifty
+    ], [
+        w + rand.randint(-a, a) + shiftx,
+        h + rand.randint(-a, a) + shifty
+    ]])
+    M = cv2.getAffineTransform(pts1, pts2)
+
+    augmented = cv2.warpAffine(
+        cv2.warpAffine(
+            image
+            , Mrot, (w, h)
+        )
+        , M, (w, h)
+    )
+
+    return augmented
+
+
+steering_angles, image_paths = load_sensor_data()
+steering_angles, image_data = load_images(steering_angles, image_paths)
+
+
 model = Sequential([
-        Reshape((CROPPED_IMAGE_HEIGHT, INPUT_IMAGE_WIDTH, 1), input_shape=(CROPPED_IMAGE_HEIGHT, INPUT_IMAGE_WIDTH)),
 
-        #choose kernel size 32x32 pixels and stride length 32, which corresponds to a minimum of
-        #200 unique strides / output filters
-        #arbitrarily choose stride length equal to kernel dimensions
-        Conv2D(200, (32,32), padding='valid'),
-        Activation('relu')
+    Reshape((160, 320, 1), input_shape=(160, 320)),
 
+    Convolution2D(24, 8, padding='valid'),
+    MaxPooling2D(pool_size=(2, 2)),
+    Dropout(0.5),
+    Activation('relu'),
+
+    # 77x157
+    Convolution2D(36, 5, padding='valid'),
+    MaxPooling2D(pool_size=(2, 2)),
+    Dropout(0.5),
+    Activation('relu'),
+
+    # 37x77
+    Convolution2D(48, 5, padding='valid'),
+    MaxPooling2D(pool_size=(2, 2)),
+    Dropout(0.5),
+    Activation('relu'),
+
+    # 17x37
+    Convolution2D(64, 3, padding='valid'),
+    MaxPooling2D(pool_size=(2, 2)),
+    Dropout(0.5),
+    Activation('relu'),
+
+    # 8x18
+    Convolution2D(64, 2, padding='valid'),
+    MaxPooling2D(pool_size=(2, 2)),
+    Dropout(0.5),
+    Activation('relu'),
+
+    # 4x9
+    Flatten(),
+
+    Dense(1024),
+    Dropout(0.5),
+    Activation('relu'),
+
+    Dense(512),
+    Dropout(0.5),
+    Activation('relu'),
+
+    Dense(256),
+    Activation('relu'),
+
+    Dense(128),
+    Activation('relu'),
+
+    Dense(32),
+    Activation('tanh'),
+
+    Dense(1)
 ])
 
 optimizer = Adam(lr=1e-4)
@@ -149,21 +288,30 @@ training_data, validation_data = partition_training_data([image_data, steering_a
 training_images, training_steering = training_data
 validation_images, validation_steering = validation_data
 
+batch_size = 112
+epochs = 10
+
+
 class SaveModel(KerasCallback):
+
     def on_epoch_end(self, epoch, logs={}):
         epoch += 1
-        if (epoch>9):
-            with open ('model-' + str(epoch) + '.json', 'w') as file:
-                file.write (model.to_json ())
-                file.close ()
+        if epoch > 9:
+            with open('model-' + str(epoch) + '.json', 'w') as file:
+                file.write(model.to_json())
+                file.close()
 
-            model.save_weights ('model-' + str(epoch) + '.h5')
+            model.save_weights('model-' + str(epoch) + '.h5')
 
 
-model.fit(
-    x=training_images,
-    steps_per_epoch=400*112,
-    epochs=30,
+save_model = SaveModel()
+
+model.fit_generator(
+    augment_generator(training_images, training_steering, batch_size),
+    steps_per_epoch=100*batch_size,
+    epochs=epochs,
     validation_data=(validation_images, validation_steering),
-    callbacks=[SaveModel ()]
+    callbacks=[save_model]
 )
+
+
