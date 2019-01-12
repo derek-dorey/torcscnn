@@ -108,117 +108,6 @@ def load_images(steering_angles, image_files):
     return steering_angles, np.array(image_data_set)
 
 
-'''
-Partition training data into a training set and validation set
-Args:
-    training_data: list of lists of size two containing training data, e.g. [image_data_list, steering_angles_list]
-    test_proportion: value between 0 and 1 that determines the index on which the data lists are split
-Returns:
-    1) train_set: [image_data_list, steering_angles_list] up to the index defined by the test_proportion
-    2) valid_set: [image_data_list, steering_angles_list] of the remaining indices
-'''
-def partition_training_data(training_data, test_proportion):
-
-    logging.info(' Partitioning training data... ')
-    training_set_count = int((1.0-test_proportion)*len(training_data[0]))
-    train_set = [list[0:training_set_count] for list in training_data]
-    valid_set = [list[training_set_count:] for list in training_data]
-    return train_set, valid_set
-
-
-def augment_generator(images_arr, steering_arr, batch_size):
-
-    logging.info(' Generating augmented data...')
-    last_index = len(images_arr) - 1
-
-    while 1:
-        batch_img = []
-        batch_steering = []
-
-        for i in range(batch_size):
-
-            idx_img = rand.randint(0, last_index)
-            im, steering = augment_record(images_arr[idx_img], steering_arr[idx_img])
-            batch_img.append(im)
-            batch_steering.append(steering)
-
-        batch_img = np.asarray(batch_img)
-        batch_steering = np.asarray(batch_steering)
-        yield (batch_img, batch_steering)
-
-
-def augment_record(im, steering):
-    im = augment_image(im)
-    if rand.uniform(0, 1) > 0.5:
-        im = cv2.flip(im, 1)
-        steering = - steering
-    steering = steering + np.random.normal(0, 0.005)
-    return im, steering
-
-
-def augment_image(image):
-    image = np.copy(image)
-
-    (h, w) = image.shape[:2]
-
-    # randomize brightness
-    brightness = rand.uniform(-0.3, 0.3)
-    image = np.add(image, brightness)
-
-    # random squares
-    rect_w = 25
-    rect_h = 25
-    rect_count = 30
-    for i in range(rect_count):
-        pt1 = (rand.randint(0, w), rand.randint(0, h))
-        pt2 = (pt1[0] + rect_w, pt1[1] + rect_h)
-        cv2.rectangle(image, pt1, pt2, (-0.5, -0.5, -0.5), -1)
-
-    # rotation and scaling
-    rot = 1
-    scale = 0.02
-    Mrot = cv2.getRotationMatrix2D((h / 2, w / 2), rand.uniform(-rot, rot), rand.uniform(1.0 - scale, 1.0 + scale))
-
-    # affine transform and shifts
-    pts1 = np.float32([[0, 0], [w, 0], [w, h]])
-    a = 0
-    shift = 2
-    shiftx = rand.randint(-shift, shift);
-    shifty = rand.randint(-shift, shift);
-    pts2 = np.float32([[
-        0 + rand.randint(-a, a) + shiftx,
-        0 + rand.randint(-a, a) + shifty
-    ], [
-        w + rand.randint(-a, a) + shiftx,
-        0 + rand.randint(-a, a) + shifty
-    ], [
-        w + rand.randint(-a, a) + shiftx,
-        h + rand.randint(-a, a) + shifty
-    ]])
-    M = cv2.getAffineTransform(pts1, pts2)
-
-    augmented = cv2.warpAffine(
-        cv2.warpAffine(
-            image
-            , Mrot, (w, h)
-        )
-        , M, (w, h)
-    )
-
-    return augmented
-"""
-Shuffle image and steering angle lists (indexing)
-Args:
-    training_data: list of lists of equal length
-Returns:
-    list of shuffled lists
-"""
-def shuffle_data(training_data):
-
-    permuted_sequence = np.random.permutation(len(training_data[0]))
-    return [training_data[permuted_sequence] for list in training_data]
-
-
 steering_angles, image_paths = load_sensor_data()
 steering_angles, image_data = load_images(steering_angles, image_paths)
 
@@ -286,11 +175,6 @@ model.compile(
     metrics=[]
 )
 
-training_data, validation_data = partition_training_data([image_data, steering_angles], test_proportion=0.33)
-training_images, training_steering = training_data
-validation_images, validation_steering = validation_data
-
-batch_size = 112
 epochs = 10
 
 
@@ -308,10 +192,10 @@ class SaveModel(KerasCallback):
 
 save_model = SaveModel()
 
-model.fit_generator(
-    augment_generator(training_images, training_steering, batch_size),
-    steps_per_epoch=100*batch_size,
+model.fit(
+    x=np.array(image_data),
+    y=np.array(steering_angles),
     epochs=epochs,
-    validation_data=(validation_images, validation_steering),
+    validation_split=0.33,
     callbacks=[save_model]
 )
