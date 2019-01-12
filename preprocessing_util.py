@@ -12,14 +12,14 @@ plt.ylabel('steering angle')
 plt.show()
 
 plt.figure(figsize=(10,8))
-sensor_data.steer.hist(bins=200, color='r')
+sensor_data.steer.hist(bins=1000, color='r')
 plt.xlabel('steering angle bins')
 plt.ylabel('counts')
 plt.xlim()
 plt.show()
 print("Dataset Size: ", len(sensor_data.steer))
 
-zero_steering = sensor_data[(sensor_data.steer > -0.01) & (sensor_data.steer < 0.01)].sample(frac=0.9)
+zero_steering = sensor_data[(sensor_data.steer > - 0.00005) & (sensor_data.steer < 0.00005)].sample(frac=0.8)
 sensor_data = sensor_data.drop(zero_steering.index)
 
 plt.figure(figsize=(10,4))
