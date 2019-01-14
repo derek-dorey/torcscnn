@@ -1,5 +1,5 @@
-SENSOR_DATA_DIRECTORY = 'C:/Users/Derek/Source/Repos/torcs-1.3.7/runtimed/'
-SENSOR_CSV_FILE = 'sensors.csv'
+SENSOR_DATA_DIRECTORY = 'C:/Users/Paperspace/project/torcs-1.3.7/runtimed/'
+SENSOR_CSV_FILE = 'E_Track_6_Sensors.csv'
 
 # [-STEERING_BOUNDARY < x < STEERING_BOUNDARY] determines whether image with steering angle 'x'
 # is categorized as driving straight

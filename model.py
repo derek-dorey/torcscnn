@@ -6,6 +6,7 @@ import numpy as np
 import cv2
 import logging
 import csv
+import matplotlib.pyplot as plt
 from keras.layers import Dense, Activation, Reshape
 from keras.layers.core import Flatten, Reshape, Dropout, Lambda
 from keras.layers.convolutional import Convolution2D, Conv2D
@@ -15,7 +16,7 @@ from keras.callbacks import Callback as KerasCallback
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
-IMAGE_DATA_DIRECTORY = 'C:/Users/Derek/Source/Repos/torcs-1.3.7/runtimed/images/'
+IMAGE_DATA_DIRECTORY = 'C:/Users/Paperspace/project/torcs-1.3.7/runtimed/E_Track_6_Images/'
 INPUT_IMAGE_FORMAT = '.bmp'
 
 STEERING_ANGLE_COLUMN = 'steer'
@@ -77,6 +78,11 @@ def load_sensor_data():
     return steering_data_list, image_file_list
 
 
+def roi(image, vertices):
+    mask = np.zeros_like(image)
+    cv2.fillPoly(mask, vertices, 255)
+    masked_image = cv2.bitwise_and(image, mask)
+    return masked_image
 """
 Retrieve image data corresponding to a list of image files located in IMAGE_DATA_DIRECTORY
 Args:
@@ -90,19 +96,42 @@ def load_images(steering_angles, image_files):
     y_start = INPUT_IMAGE_HEIGHT - CROPPED_IMAGE_HEIGHT
     x_start = 0
     image_data_set = []
-    count = 0;
+    vertices = np.array([[0, 385], [0, 275], [450, 250], [640, 275], [640, 385]])
+    count = -1
 
     for current_image in image_files:
 
         count += 1
-        image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.IMREAD_GRAYSCALE)
 
-        if image is None:
+        if current_image is None:
             del steering_angles[count]
             continue
 
-        cropped_image = image[y_start:INPUT_IMAGE_HEIGHT, x_start:INPUT_IMAGE_WIDTH]
-        downsize_image = cv2.resize(cropped_image, (0,0), fx=0.5, fy=0.5)
+        og_image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.COLOR_BGR2RGB)
+        blurred_image = cv2.GaussianBlur(og_image, (3, 3), 0)
+        edge_image = cv2.Canny(blurred_image, 50, 150)
+        roi_image = roi(edge_image, [vertices])
+        cropped_image = roi_image[250:410, x_start:INPUT_IMAGE_WIDTH]
+        downsize_image = cv2.resize(cropped_image, (0, 0), fx=0.5, fy=1)
+
+        #image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image)
+        #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        #plt.figure(1)
+        #plt.imshow(roi_image)
+        #plt.show()
+        #cv2.imshow('original', image)
+        #cv2.waitKey(0)
+
+        #cv2.imshow('edges', image)
+        #cv2.waitKey(0)
+        #vertices = np.array([[0, 385], [0, 275], [450, 250], [640, 275], [640, 385]])
+
+        #cv2.imshow('roi', image)
+        #cv2.waitKey(0)
+
+        #cv2.imshow('Input Image', downsize_image)
+        #cv2.waitKey(0)
+
         image_data_set.append(downsize_image)
 
     return steering_angles, np.array(image_data_set)
