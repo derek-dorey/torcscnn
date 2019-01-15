@@ -204,14 +204,14 @@ model.compile(
     metrics=[]
 )
 
-epochs = 10
+epochs = 30
 
 
 class SaveModel(KerasCallback):
 
     def on_epoch_end(self, epoch, logs={}):
         epoch += 1
-        if epoch > 9:
+        if epoch > 29:
             with open('model-' + str(epoch) + '.json', 'w') as file:
                 file.write(model.to_json())
                 file.close()
