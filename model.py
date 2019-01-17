@@ -246,7 +246,7 @@ checkpoint = ModelCheckpoint(filepath=MODEL_OUTPUT_DIRECTORY + '/{val_loss:.4f}.
                              monitor='val_loss', verbose=0, save_best_only=True)
 #save_model = SaveModel()
 
-model.fit(
+history_callback = model.fit(
     x=np.array(image_data),
     y=np.array(steering_angles),
     epochs=epochs,
@@ -266,3 +266,7 @@ with open(JSON_OUTPUT, 'w') as file:
     file.close()
 
 model.save_weights(H5_OUTPUT)
+
+loss_history = history_callback.history["loss"]
+numpy_loss_history = np.array(loss_history)
+np.savetxt("loss_history.txt", numpy_loss_history, delimiter=',')
