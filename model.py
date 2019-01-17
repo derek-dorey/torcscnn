@@ -6,6 +6,7 @@ import numpy as np
 import cv2
 import logging
 import csv
+import os
 import matplotlib.pyplot as plt
 from keras.layers import Dense, Activation, Reshape
 from keras.layers.core import Flatten, Reshape, Dropout, Lambda
@@ -13,6 +14,7 @@ from keras.layers.convolutional import Convolution2D, Conv2D
 from keras.layers.pooling import MaxPooling2D
 from keras.optimizers import Adam, SGD
 from keras.callbacks import Callback as KerasCallback
+from keras.callbacks import ModelCheckpoint
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
@@ -27,6 +29,11 @@ INPUT_IMAGE_HEIGHT = 480
 CROPPED_IMAGE_HEIGHT = 320
 
 STRAIGHT_DRIVING_INCLUSION_RATE = 1/(1-properties.STRAIGHT_DRIVING_EXCLUSION_FACTOR)
+
+MODEL_OUTPUT_DIRECTORY = 'model_weights'
+
+JSON_OUTPUT = 'model.json'
+H5_OUTPUT = 'model.h5'
 
 
 """
@@ -204,27 +211,58 @@ model.compile(
     metrics=[]
 )
 
-epochs = 30
+
+def save_best_model(epoch, dir_path, num_ext, ext):
+    tmp_file_name = os.listdir(dir_path)
+    test = []
+    num_element = -num_ext
+
+    for x in range(0, len(tmp_file_name)):
+        test.append(tmp_file_name[x][:num_element])
+        float(test[x])
+
+    lowest = min(test)
+
+    return str(lowest) + ext
 
 
-class SaveModel(KerasCallback):
+epochs = 5
 
-    def on_epoch_end(self, epoch, logs={}):
-        epoch += 1
-        if epoch > 29:
-            with open('model-' + str(epoch) + '.json', 'w') as file:
-                file.write(model.to_json())
-                file.close()
+#class SaveModel(KerasCallback):
 
-            model.save_weights('model-' + str(epoch) + '.h5')
+#    def on_epoch_end(self, epoch, logs={}):
+
+#        epoch += 1
+
+#        if epoch > 29:
+#            with open('model-' + str(epoch) + '.json', 'w') as file:
+#                file.write(model.to_json())
+#                file.close()
+
+#            model.save_weights('model-' + str(epoch) + '.h5')
 
 
-save_model = SaveModel()
+checkpoint = ModelCheckpoint(filepath=MODEL_OUTPUT_DIRECTORY + '/{val_loss:.4f}.hdf5',
+                             monitor='val_loss', verbose=0, save_best_only=True)
+#save_model = SaveModel()
 
 model.fit(
     x=np.array(image_data),
     y=np.array(steering_angles),
     epochs=epochs,
     validation_split=0.33,
-    callbacks=[save_model]
+    callbacks=[checkpoint]
 )
+
+best_model = save_best_model(epochs, MODEL_OUTPUT_DIRECTORY, 5, '.hdf5')
+
+logging.info(" Best model found: " + best_model)
+logging.info(" Saving " + best_model + " as " + JSON_OUTPUT + ', ' + H5_OUTPUT)
+
+model.load_weights(MODEL_OUTPUT_DIRECTORY + '/' + best_model)
+
+with open(JSON_OUTPUT, 'w') as file:
+    file.write(model.to_json())
+    file.close()
+
+model.save_weights(H5_OUTPUT)
