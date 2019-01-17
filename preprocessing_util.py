@@ -1,19 +1,28 @@
+import glob
 import properties as properties
 import pandas as pd
 import matplotlib.pyplot as plt
 
-sensor_data = pd.read_csv(properties.SENSOR_DATA_DIRECTORY + properties.SENSOR_CSV_FILE)
-sensor_data.head()
+SINGLE_CSV = False
 
-sensor_data.steer.plot(title='Steering data distribution', fontsize=17, figsize=(10,5), color= 'r')
-plt.xlabel('frames')
-plt.ylabel('steering angle')
+
+if SINGLE_CSV:
+    sensor_data = pd.read_csv(properties.SENSOR_DATA_DIRECTORY + properties.SENSOR_CSV_FILE)
+    sensor_data.head()
+
+else:
+    sensor_data_path = glob.glob(properties.SENSOR_DATA_DIRECTORY + '*.csv')
+    sensor_data = pd.concat((pd.read_csv(f) for f in sensor_data_path))
+
+sensor_data.steer.plot(title='Steering Data Distribution', fontsize=17, figsize=(10,5), color= 'r')
+plt.xlabel('Frames')
+plt.ylabel('Steering Angle')
 plt.show()
 
 plt.figure(figsize=(10,8))
 sensor_data.steer.hist(bins=100, color='r')
-plt.xlabel('steering angle bins')
-plt.ylabel('counts')
+plt.xlabel('Steering Angle Bins')
+plt.ylabel('Number of Samples')
 plt.xlim()
 plt.show()
 print("Dataset Size: ", len(sensor_data.steer))
@@ -24,7 +33,7 @@ sensor_data = sensor_data.drop(zero_steering.index)
 
 plt.figure(figsize=(10,4))
 sensor_data.steer.hist(bins=100, color='r')
-plt.xlabel('steering angle bins')
-plt.ylabel('counts')
+plt.xlabel('Steering Angle Bins')
+plt.ylabel('Number of Samples')
 plt.show()
 print("Current Dataset Size: ", len(sensor_data.steer))
