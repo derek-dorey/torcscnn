@@ -1,4 +1,4 @@
-SENSOR_DATA_DIRECTORY = 'C:/Users/Paperspace/project/torcscnn/sensor_data/'
+SENSOR_DATA_DIRECTORY = 'C:/Users/Paperspace/project/torcscnn/training_data/'
 SENSOR_CSV_FILE = 'E_Track_6_Sensors.csv'
 
 # [-STEERING_BOUNDARY < x < STEERING_BOUNDARY] determines whether image with steering angle 'x'

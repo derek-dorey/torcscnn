@@ -9,9 +9,10 @@ LEFT_BOUNDARY = -0.5
 RIGHT_BOUNDARY = abs(LEFT_BOUNDARY)
 BIN_WIDTH = 0.01
 SAMPLE_CEILING = 500
-COLUMN_NAMES = ['Unnamed: 0', '__doc__', '__init__', '__module__', 'accel', 'angle', 'brake', 'clutch', 'count', 'curLapTime',
-                'damage', 'distFromStart', 'distRaced', 'distToMiddle', 'focus', 'fps', 'fuel', 'gear', 'lastLapTime',
-                'posZ', 'racePos', 'rpm', 'speedX', 'speedY', 'speedZ', 'steer', 'totalDistFromStart', 'wheelVel']
+COLUMN_NAMES = ['Unnamed: 0', 'Unnamed: 0.1', '__doc__', '__init__', '__module__', 'accel', 'angle', 'brake', 'clutch',
+                'count', 'curLapTime', 'damage', 'distFromStart', 'distRaced', 'distToMiddle', 'focus', 'fps', 'fuel',
+                'gear', 'lastLapTime', 'posZ', 'racePos', 'rpm', 'speedX', 'speedY', 'speedZ', 'steer',
+                'totalDistFromStart', 'wheelVel', 'imageFolder', 'Unnamed: 28']
 
 steer_bins = np.arange(LEFT_BOUNDARY, RIGHT_BOUNDARY, BIN_WIDTH)
 
