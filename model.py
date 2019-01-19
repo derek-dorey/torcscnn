@@ -1,3 +1,4 @@
+from comet_ml import Experiment
 from keras.models import Sequential
 
 import properties as properties
@@ -16,13 +17,17 @@ from keras.optimizers import Adam, SGD
 from keras.callbacks import Callback as KerasCallback
 from keras.callbacks import ModelCheckpoint
 
+#experiment = Experiment(api_key="OPsq7RrD8Dl7fz8ne26NxQkcD",
+#                        project_name="general", workspace="derek-dorey")
+
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
-IMAGE_DATA_DIRECTORY = 'C:/Users/Paperspace/project/torcs-1.3.7/runtimed/E_Track_6_Images/'
+IMAGE_DATA_DIRECTORY = 'C:/Users/Paperspace/project/torcs-1.3.7/runtimed/'
 INPUT_IMAGE_FORMAT = '.bmp'
 
 STEERING_ANGLE_COLUMN = 'steer'
 IMAGE_FILE_COLUMN = 'count'
+IMAGE_FOLDER_COLUMN = 'imageFolder'
 
 INPUT_IMAGE_WIDTH = 640
 INPUT_IMAGE_HEIGHT = 480
@@ -46,14 +51,15 @@ Returns:
 """
 def load_sensor_data():
 
-    logging.info(' Retrieving sensor data from ' + properties.SENSOR_DATA_DIRECTORY + properties.SENSOR_CSV_FILE)
+    logging.info(' Retrieving sensor data from ' +
+                 'C:/Users/Paperspace/project/torcscnn/training_data/collated_sensor_data/' + properties.SENSOR_CSV_FILE)
     steering_data_list = []
     image_file_list = []
 
-    with open(properties.SENSOR_DATA_DIRECTORY + properties.SENSOR_CSV_FILE) as sensor_data_csv:
+    with open('C:/Users/Paperspace/project/torcscnn/training_data/collated_sensor_data/' + properties.SENSOR_CSV_FILE) as sensor_data_csv:
         sensor_data_reader = csv.DictReader(sensor_data_csv, dialect="excel")
 
-        straight_driving_image_count = 0
+        #straight_driving_image_count = 0
 
         for row in sensor_data_reader:
 
@@ -62,25 +68,24 @@ def load_sensor_data():
 
             try:
                 steering_angle = float(row[STEERING_ANGLE_COLUMN])
+                steering_data_list.append(steering_angle)
+                image_file_list.append(row[IMAGE_FOLDER_COLUMN] + '/' + row[IMAGE_FILE_COLUMN] + INPUT_IMAGE_FORMAT)
 
             except ValueError:
                 logging.WARNING('Invalid steering angle entry: ' + row[STEERING_ANGLE_COLUMN] + ' for image ' +
                                 row[IMAGE_FILE_COLUMN] + '; Value excluded from training data.')
 
-            if abs(steering_angle) < properties.STEERING_BOUNDARY:
+            #if abs(steering_angle) < properties.STEERING_BOUNDARY:
 
-                straight_driving_image_count += 1
+            #    straight_driving_image_count += 1
 
-                if straight_driving_image_count == STRAIGHT_DRIVING_INCLUSION_RATE:
+            #    if straight_driving_image_count == STRAIGHT_DRIVING_INCLUSION_RATE:
 
-                    steering_data_list.append(steering_angle)
-                    image_file_list.append(row[IMAGE_FILE_COLUMN] + INPUT_IMAGE_FORMAT)
-                    straight_driving_image_count = 0
+            #        steering_data_list.append(steering_angle)
+            #        image_file_list.append(row[IMAGE_FILE_COLUMN] + INPUT_IMAGE_FORMAT)
+            #       straight_driving_image_count = 0
 
-            else:
-
-                steering_data_list.append(steering_angle)
-                image_file_list.append(row[IMAGE_FILE_COLUMN] + INPUT_IMAGE_FORMAT)
+            #else:
 
     return steering_data_list, image_file_list
 
@@ -105,6 +110,7 @@ def load_images(steering_angles, image_files):
     image_data_set = []
     vertices = np.array([[0, 385], [0, 275], [450, 250], [640, 275], [640, 385]])
     count = -1
+    error_count = 0
 
     for current_image in image_files:
 
@@ -114,12 +120,42 @@ def load_images(steering_angles, image_files):
             del steering_angles[count]
             continue
 
-        og_image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.COLOR_BGR2RGB)
-        blurred_image = cv2.GaussianBlur(og_image, (3, 3), 0)
-        edge_image = cv2.Canny(blurred_image, 50, 150)
-        roi_image = roi(edge_image, [vertices])
-        cropped_image = roi_image[250:410, x_start:INPUT_IMAGE_WIDTH]
-        downsize_image = cv2.resize(cropped_image, (0, 0), fx=0.5, fy=1)
+        og_image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.IMREAD_GRAYSCALE)
+
+        try:
+            cropped_image = og_image[y_start:INPUT_IMAGE_HEIGHT, x_start:INPUT_IMAGE_WIDTH]
+        except TypeError:
+            del steering_angles[count]
+            logging.warning(' ERRONEOUS ENTRY: ' + current_image)
+            error_count += 1
+            continue
+
+        #cv2.imshow('cropped', cropped_image)
+        #cv2.waitKey(0)
+
+        downsize_image = cv2.resize(cropped_image, (0, 0), fx=0.5, fy=0.5)
+        image_data_set.append(downsize_image)
+
+        #cv2.imshow('og', og_image)
+        #cv2.waitKey(0)
+        #logging.info(' Loading image: ' + current_image)
+
+        #og_image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.COLOR_BGR2RGB)
+        #blurred_image = cv2.GaussianBlur(og_image, (3, 3), 0)
+        #edge_image = cv2.Canny(blurred_image, 50, 150)
+
+
+        #try:
+        #    roi_image = roi(edge_image, [vertices])
+        #except TypeError:
+        #    del steering_angles[count]
+        #    logging.warning(' ERRONEOUS ENTRY: ' + current_image)
+        #    error_count += 1
+        #    continue
+
+
+        #cropped_image = roi_image[250:410, x_start:INPUT_IMAGE_WIDTH]
+        #downsize_image = cv2.resize(cropped_image, (0, 0), fx=0.5, fy=1)
 
         #image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image)
         #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -139,13 +175,14 @@ def load_images(steering_angles, image_files):
         #cv2.imshow('Input Image', downsize_image)
         #cv2.waitKey(0)
 
-        image_data_set.append(downsize_image)
+        #image_data_set.append(downsize_image)
 
     return steering_angles, np.array(image_data_set)
 
 
 steering_angles, image_paths = load_sensor_data()
 steering_angles, image_data = load_images(steering_angles, image_paths)
+
 
 model = Sequential([
 
