@@ -82,4 +82,9 @@ sampled_data.steer.hist(bins=steer_bins, color='r')
 plt.xlabel('Steering Angle Bins')
 plt.ylabel('Number of Samples')
 plt.show()
-print("Current Dataset Size: ", len(sampled_data.steer))
+print("Sample Dataset Size: ", len(sampled_data.steer))
+
+sorted_data = sampled_data.sort_values(['imageFolder', 'count'], ascending=[True, True], kind='mergesort')
+sorted_data.to_csv('C:/Users/Paperspace/project/torcscnn/training_data/collated_sensor_data/collated_sensor_data.csv')
+
+print("Sorted Dataset Size: ", len(sorted_data.steer))
