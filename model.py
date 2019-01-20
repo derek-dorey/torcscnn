@@ -17,8 +17,8 @@ from keras.optimizers import Adam, SGD
 from keras.callbacks import Callback as KerasCallback
 from keras.callbacks import ModelCheckpoint
 
-#experiment = Experiment(api_key="OPsq7RrD8Dl7fz8ne26NxQkcD",
-#                        project_name="general", workspace="derek-dorey")
+experiment = Experiment(api_key="OPsq7RrD8Dl7fz8ne26NxQkcD",
+                        project_name="general", workspace="derek-dorey")
 
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
@@ -116,46 +116,45 @@ def load_images(steering_angles, image_files):
 
         count += 1
 
-        if current_image is None:
-            del steering_angles[count]
-            continue
+        #if current_image is None:
+        #    del steering_angles[count]
+        #    continue
 
-        og_image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.IMREAD_GRAYSCALE)
-
-        try:
-            cropped_image = og_image[y_start:INPUT_IMAGE_HEIGHT, x_start:INPUT_IMAGE_WIDTH]
-        except TypeError:
-            del steering_angles[count]
-            logging.warning(' ERRONEOUS ENTRY: ' + current_image)
-            error_count += 1
-            continue
-
-        #cv2.imshow('cropped', cropped_image)
-        #cv2.waitKey(0)
-
-        downsize_image = cv2.resize(cropped_image, (0, 0), fx=0.5, fy=0.5)
-        image_data_set.append(downsize_image)
-
-        #cv2.imshow('og', og_image)
-        #cv2.waitKey(0)
-        #logging.info(' Loading image: ' + current_image)
-
-        #og_image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.COLOR_BGR2RGB)
-        #blurred_image = cv2.GaussianBlur(og_image, (3, 3), 0)
-        #edge_image = cv2.Canny(blurred_image, 50, 150)
-
+        #og_image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.IMREAD_GRAYSCALE)
 
         #try:
-        #    roi_image = roi(edge_image, [vertices])
+        #    cropped_image = og_image[y_start:INPUT_IMAGE_HEIGHT, x_start:INPUT_IMAGE_WIDTH]
         #except TypeError:
         #    del steering_angles[count]
         #    logging.warning(' ERRONEOUS ENTRY: ' + current_image)
         #    error_count += 1
         #    continue
 
+        #cv2.imshow('cropped', cropped_image)
+        #cv2.waitKey(0)
 
-        #cropped_image = roi_image[250:410, x_start:INPUT_IMAGE_WIDTH]
-        #downsize_image = cv2.resize(cropped_image, (0, 0), fx=0.5, fy=1)
+        #downsize_image = cv2.resize(cropped_image, (0, 0), fx=0.5, fy=0.5)
+        #image_data_set.append(downsize_image)
+
+        #cv2.imshow('og', og_image)
+        #cv2.waitKey(0)
+        #logging.info(' Loading image: ' + current_image)
+
+        og_image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.COLOR_BGR2RGB)
+        blurred_image = cv2.GaussianBlur(og_image, (3, 3), 0)
+        edge_image = cv2.Canny(blurred_image, 50, 150)
+
+        try:
+            roi_image = roi(edge_image, [vertices])
+        except TypeError:
+            del steering_angles[count]
+            logging.warning(' ERRONEOUS ENTRY: ' + current_image)
+            error_count += 1
+            continue
+
+
+        cropped_image = roi_image[250:410, x_start:INPUT_IMAGE_WIDTH]
+        downsize_image = cv2.resize(cropped_image, (0, 0), fx=0.5, fy=1)
 
         #image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image)
         #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -175,7 +174,7 @@ def load_images(steering_angles, image_files):
         #cv2.imshow('Input Image', downsize_image)
         #cv2.waitKey(0)
 
-        #image_data_set.append(downsize_image)
+        image_data_set.append(downsize_image)
 
     return steering_angles, np.array(image_data_set)
 
@@ -263,7 +262,7 @@ def save_best_model(epoch, dir_path, num_ext, ext):
     return str(lowest) + ext
 
 
-epochs = 5
+epochs = 30
 
 #class SaveModel(KerasCallback):
 
