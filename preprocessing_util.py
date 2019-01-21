@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 SINGLE_CSV = False
+GENERATE_AUGMENT_CANDIDATES = False
 LEFT_BOUNDARY = -0.5
 RIGHT_BOUNDARY = abs(LEFT_BOUNDARY)
 BIN_WIDTH = 0.01
@@ -18,6 +19,7 @@ steer_bins = np.arange(LEFT_BOUNDARY, RIGHT_BOUNDARY, BIN_WIDTH)
 
 if SINGLE_CSV:
     sensor_data = pd.read_csv(properties.SENSOR_DATA_DIRECTORY + properties.SENSOR_CSV_FILE)
+    #sensor_data = pd.read_csv('C:/Users/Paperspace/project/torcscnn/augmented_data/augment_candidates.csv')
     sensor_data.head()
 
 else:
@@ -37,9 +39,13 @@ plt.xlim()
 plt.show()
 print("Dataset Size: ", len(sensor_data.steer))
 
+sampled_data = pd.DataFrame(columns=COLUMN_NAMES)
+
+if GENERATE_AUGMENT_CANDIDATES:
+    augment_candidates = pd.DataFrame(columns=COLUMN_NAMES)
+
 increment = 0
 
-sampled_data = pd.DataFrame(columns=COLUMN_NAMES)
 
 for sb in steer_bins:
 
@@ -47,7 +53,7 @@ for sb in steer_bins:
 
         try:
             downsized_sample = sensor_data[
-                (sensor_data.steer >= sb) & (sensor_data.steer < (sb + BIN_WIDTH))].sample(n=500)
+                (sensor_data.steer >= sb) & (sensor_data.steer < (sb + BIN_WIDTH))].sample(n=SAMPLE_CEILING)
 
             sampled_data = pd.concat([sampled_data, downsized_sample])
             increment += 1
@@ -56,6 +62,10 @@ for sb in steer_bins:
 
             downsized_sample = sensor_data[(sensor_data.steer >= sb) & (sensor_data.steer < (sb + BIN_WIDTH))]
             sampled_data = pd.concat([sampled_data, downsized_sample])
+
+            if GENERATE_AUGMENT_CANDIDATES:
+                augment_candidates = pd.concat([augment_candidates, downsized_sample])
+
             increment += 1
             continue
 
@@ -63,7 +73,7 @@ for sb in steer_bins:
 
         try:
             downsized_sample = sensor_data[
-                (sensor_data.steer > sb) & (sensor_data.steer <= (sb + BIN_WIDTH))].sample(n=500)
+                (sensor_data.steer > sb) & (sensor_data.steer <= (sb + BIN_WIDTH))].sample(n=SAMPLE_CEILING)
 
             sampled_data = pd.concat([sampled_data, downsized_sample])
             increment += 1
@@ -72,6 +82,9 @@ for sb in steer_bins:
 
             downsized_sample = sensor_data[(sensor_data.steer > sb) & (sensor_data.steer <= (sb + BIN_WIDTH))]
             sampled_data = pd.concat([sampled_data, downsized_sample])
+
+            if GENERATE_AUGMENT_CANDIDATES:
+                augment_candidates = pd.concat([augment_candidates, downsized_sample])
 
             increment += 1
             continue
@@ -86,5 +99,9 @@ print("Sample Dataset Size: ", len(sampled_data.steer))
 
 sorted_data = sampled_data.sort_values(['imageFolder', 'count'], ascending=[True, True], kind='mergesort')
 sorted_data.to_csv('C:/Users/Paperspace/project/torcscnn/training_data/collated_sensor_data/collated_sensor_data.csv')
-
 print("Sorted Dataset Size: ", len(sorted_data.steer))
+
+if GENERATE_AUGMENT_CANDIDATES:
+    sorted_data = augment_candidates.sort_values(['imageFolder', 'count'], ascending=[True, True], kind='mergesort')
+    sorted_data.to_csv('C:/Users/Paperspace/project/torcscnn/augmented_data/augment_candidates.csv')
+    print("Augmentation Candidates Size: ", len(sorted_data.steer))
