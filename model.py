@@ -20,6 +20,8 @@ from keras.callbacks import ModelCheckpoint
 experiment = Experiment(api_key="OPsq7RrD8Dl7fz8ne26NxQkcD",
                         project_name="general", workspace="derek-dorey")
 
+EDGE_DETECTION_GRAYSCALE = True
+
 logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
 IMAGE_DATA_DIRECTORY = 'C:/Users/Paperspace/project/torcs-1.3.7/runtimed/'
@@ -116,30 +118,62 @@ def load_images(steering_angles, image_files):
 
         count += 1
 
-        #if current_image is None:
-        #    del steering_angles[count]
-        #    continue
+        if current_image is None:
+            del steering_angles[count]
+            continue
 
-        #og_image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.IMREAD_GRAYSCALE)
+        if EDGE_DETECTION_GRAYSCALE:
 
-        #try:
-        #    cropped_image = og_image[y_start:INPUT_IMAGE_HEIGHT, x_start:INPUT_IMAGE_WIDTH]
-        #except TypeError:
-        #    del steering_angles[count]
-        #    logging.warning(' ERRONEOUS ENTRY: ' + current_image)
-        #    error_count += 1
-        #    continue
+            og_image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.IMREAD_GRAYSCALE)
+
+            #cv2.imshow("Grayscale Image", og_image)
+            #cv2.waitKey(0)
+
+            try:
+                cropped_image = og_image[y_start:INPUT_IMAGE_HEIGHT, x_start:INPUT_IMAGE_WIDTH]
+                #cv2.imshow("Cropped Image", cropped_image)
+                #cv2.waitKey(0)
+            except TypeError:
+                del steering_angles[count]
+                logging.warning(' ERRONEOUS ENTRY: ' + current_image)
+                error_count += 1
+                continue
+
+            edge_image = cv2.Canny(cropped_image, 50, 150)
+
+            #cv2.imshow("Edge Detection", edge_image)
+            #cv2.waitKey(0)
+
+            downsize_image = cv2.resize(edge_image, (0, 0), fx=0.5, fy=0.5)
+
+            #cv2.imshow("Input", downsize_image)
+            #cv2.waitKey(0)
+
+            image_data_set.append(downsize_image)
+
+        '''
+        og_image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.IMREAD_GRAYSCALE)
+
+        try:
+            cropped_image = og_image[y_start:INPUT_IMAGE_HEIGHT, x_start:INPUT_IMAGE_WIDTH]
+        except TypeError:
+            del steering_angles[count]
+            logging.warning(' ERRONEOUS ENTRY: ' + current_image)
+            error_count += 1
+            continue
 
         #cv2.imshow('cropped', cropped_image)
         #cv2.waitKey(0)
 
-        #downsize_image = cv2.resize(cropped_image, (0, 0), fx=0.5, fy=0.5)
-        #image_data_set.append(downsize_image)
+        downsize_image = cv2.resize(cropped_image, (0, 0), fx=0.5, fy=0.5)
+        image_data_set.append(downsize_image)
 
         #cv2.imshow('og', og_image)
         #cv2.waitKey(0)
         #logging.info(' Loading image: ' + current_image)
+        '''
 
+        '''
         og_image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.COLOR_BGR2RGB)
         blurred_image = cv2.GaussianBlur(og_image, (3, 3), 0)
         edge_image = cv2.Canny(blurred_image, 50, 150)
@@ -155,7 +189,7 @@ def load_images(steering_angles, image_files):
 
         cropped_image = roi_image[250:410, x_start:INPUT_IMAGE_WIDTH]
         downsize_image = cv2.resize(cropped_image, (0, 0), fx=0.5, fy=1)
-
+        '''
         #image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image)
         #image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         #plt.figure(1)
@@ -174,7 +208,7 @@ def load_images(steering_angles, image_files):
         #cv2.imshow('Input Image', downsize_image)
         #cv2.waitKey(0)
 
-        image_data_set.append(downsize_image)
+        #image_data_set.append(downsize_image)
 
     return steering_angles, np.array(image_data_set)
 
@@ -187,31 +221,31 @@ model = Sequential([
 
     Reshape((160, 320, 1), input_shape=(160, 320)),
 
-    Convolution2D(24, 8, padding='valid'),
+    Conv2D(24, 8, padding='valid'),
     MaxPooling2D(pool_size=(2, 2)),
     Dropout(0.5),
     Activation('relu'),
 
     # 77x157
-    Convolution2D(36, 5, padding='valid'),
+    Conv2D(36, 5, padding='valid'),
     MaxPooling2D(pool_size=(2, 2)),
     Dropout(0.5),
     Activation('relu'),
 
     # 37x77
-    Convolution2D(48, 5, padding='valid'),
+    Conv2D(48, 5, padding='valid'),
     MaxPooling2D(pool_size=(2, 2)),
     Dropout(0.5),
     Activation('relu'),
 
     # 17x37
-    Convolution2D(64, 3, padding='valid'),
+    Conv2D(64, 3, padding='valid'),
     MaxPooling2D(pool_size=(2, 2)),
     Dropout(0.5),
     Activation('relu'),
 
     # 8x18
-    Convolution2D(64, 2, padding='valid'),
+    Conv2D(64, 2, padding='valid'),
     MaxPooling2D(pool_size=(2, 2)),
     Dropout(0.5),
     Activation('relu'),
