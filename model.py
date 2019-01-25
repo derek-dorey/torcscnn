@@ -16,9 +16,16 @@ from keras.layers.pooling import MaxPooling2D
 from keras.optimizers import Adam, SGD
 from keras.callbacks import Callback as KerasCallback
 from keras.callbacks import ModelCheckpoint
+from keras.optimizers import Adam, Nadam
+from keras.activations import relu, tanh
+from keras.losses import mse
+import talos as ta
 
-experiment = Experiment(api_key="OPsq7RrD8Dl7fz8ne26NxQkcD",
-                        project_name="general", workspace="derek-dorey")
+from talos.model.early_stopper import early_stopper
+from talos.model.normalizers import lr_normalizer
+
+#experiment = Experiment(api_key="OPsq7RrD8Dl7fz8ne26NxQkcD",
+#                        project_name="general", workspace="derek-dorey")
 
 EDGE_DETECTION_GRAYSCALE = True
 
@@ -41,7 +48,6 @@ MODEL_OUTPUT_DIRECTORY = 'model_weights'
 
 JSON_OUTPUT = 'model.json'
 H5_OUTPUT = 'model.h5'
-
 
 """
 Retrieve sensor data from torcs-1.3.7;
@@ -139,12 +145,12 @@ def load_images(steering_angles, image_files):
                 error_count += 1
                 continue
 
-            edge_image = cv2.Canny(cropped_image, 50, 150)
+            #edge_image = cv2.Canny(cropped_image, 50, 150)
 
             #cv2.imshow("Edge Detection", edge_image)
             #cv2.waitKey(0)
 
-            downsize_image = cv2.resize(edge_image, (0, 0), fx=0.5, fy=0.5)
+            downsize_image = cv2.resize(cropped_image, (0, 0), fx=0.5, fy=0.5)
 
             #cv2.imshow("Input", downsize_image)
             #cv2.waitKey(0)
@@ -216,72 +222,110 @@ def load_images(steering_angles, image_files):
 steering_angles, image_paths = load_sensor_data()
 steering_angles, image_data = load_images(steering_angles, image_paths)
 
-
-model = Sequential([
-
-    Reshape((160, 320, 1), input_shape=(160, 320)),
-
-    Conv2D(24, 8, padding='valid'),
-    MaxPooling2D(pool_size=(2, 2)),
-    Dropout(0.5),
-    Activation('relu'),
-
-    # 77x157
-    Conv2D(36, 5, padding='valid'),
-    MaxPooling2D(pool_size=(2, 2)),
-    Dropout(0.5),
-    Activation('relu'),
-
-    # 37x77
-    Conv2D(48, 5, padding='valid'),
-    MaxPooling2D(pool_size=(2, 2)),
-    Dropout(0.5),
-    Activation('relu'),
-
-    # 17x37
-    Conv2D(64, 3, padding='valid'),
-    MaxPooling2D(pool_size=(2, 2)),
-    Dropout(0.5),
-    Activation('relu'),
-
-    # 8x18
-    Conv2D(64, 2, padding='valid'),
-    MaxPooling2D(pool_size=(2, 2)),
-    Dropout(0.5),
-    Activation('relu'),
-
-    # 4x9
-    Flatten(),
-
-    Dense(1024),
-    Dropout(0.5),
-    Activation('relu'),
-
-    Dense(512),
-    Dropout(0.5),
-    Activation('relu'),
-
-    Dense(256),
-    Activation('relu'),
-
-    Dense(128),
-    Activation('relu'),
-
-    Dense(32),
-    Activation('tanh'),
-
-    Dense(1)
-])
-
-optimizer = Adam(lr=1e-4)
-
-model.compile(
-    optimizer=optimizer,
-    loss='mse',
-    metrics=[]
-)
+p = {'lr': (0.0001, 0.001, 0.01),
+     'first_layer': [18, 24, 32],
+     'validation_split': [0.2, 0.33],
+     'batch_size': [16, 32, 48],
+     'epochs': [10, 15, 20],
+     'dropout': (0.35, 0.5, 0.65),
+     'optimizer': [Adam],
+     'loss': [mse],
+     'last_activation': [tanh],
+     'weight_regulizer': [None]}
 
 
+def torcs_model(img_data, steer_data, x_val, y_val, params):
+
+    model = Sequential([
+
+        Reshape((160, 320, 1), input_shape=(160, 320)),
+
+        Conv2D(params['first_layer'], 8, padding='valid'),
+        MaxPooling2D(pool_size=(2, 2)),
+        Dropout(params['dropout']),
+        Activation('relu'),
+
+        # 77x157
+        Conv2D(36, 5, padding='valid'),
+        MaxPooling2D(pool_size=(2, 2)),
+        Dropout(params['dropout']),
+        Activation('relu'),
+
+        # 37x77
+        Conv2D(48, 5, padding='valid'),
+        MaxPooling2D(pool_size=(2, 2)),
+        Dropout(params['dropout']),
+        Activation('relu'),
+
+        # 17x37
+        Conv2D(64, 3, padding='valid'),
+        MaxPooling2D(pool_size=(2, 2)),
+        Dropout(params['dropout']),
+        Activation('relu'),
+
+        # 8x18
+        Conv2D(64, 2, padding='valid'),
+        MaxPooling2D(pool_size=(2, 2)),
+        Dropout(params['dropout']),
+        Activation('relu'),
+
+        # 4x9
+        Flatten(),
+
+        Dense(1024),
+        Dropout(0.5),
+        Activation('relu'),
+
+        Dense(512),
+        Dropout(0.5),
+        Activation('relu'),
+
+        Dense(256),
+        Activation('relu'),
+
+        Dense(128),
+        Activation('relu'),
+
+        Dense(32),
+        Activation(params['last_activation']),
+
+        Dense(1)
+    ])
+
+    #optimizer = Adam(lr='1e-4')
+
+    model.compile(
+        optimizer=params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
+        loss=params['loss'],
+        metrics=[]
+    )
+
+    out = model.fit(
+        x=img_data,
+        y=steer_data,
+        batch_size=params['batch_size'],
+        epochs=params['epochs'],
+        validation_split=params['validation_split'],
+        #callbacks=early_stopper(params['epochs'], mode='strict')
+    )
+
+    return out, model
+
+
+np_image_data = np.array(image_data)
+np_steering_angles = np.array(steering_angles)
+max = len(np_image_data)
+
+print('test')
+h = ta.Scan(np_image_data, np_steering_angles, params=p, model=torcs_model)
+
+h.data.head()
+
+print(h.peak_epochs_df)
+print(h.details)
+
+
+'''
 def save_best_model(epoch, dir_path, num_ext, ext):
     tmp_file_name = os.listdir(dir_path)
     test = []
@@ -294,9 +338,9 @@ def save_best_model(epoch, dir_path, num_ext, ext):
     lowest = min(test)
 
     return str(lowest) + ext
+'''
 
-
-epochs = 30
+#epochs = 30
 
 #class SaveModel(KerasCallback):
 
@@ -312,18 +356,11 @@ epochs = 30
 #            model.save_weights('model-' + str(epoch) + '.h5')
 
 
-checkpoint = ModelCheckpoint(filepath=MODEL_OUTPUT_DIRECTORY + '/{val_loss:.4f}.hdf5',
-                             monitor='val_loss', verbose=0, save_best_only=True)
+#checkpoint = ModelCheckpoint(filepath=MODEL_OUTPUT_DIRECTORY + '/{val_loss:.4f}.hdf5',
+#                             monitor='val_loss', verbose=0, save_best_only=True)
 #save_model = SaveModel()
 
-history_callback = model.fit(
-    x=np.array(image_data),
-    y=np.array(steering_angles),
-    epochs=epochs,
-    validation_split=0.33,
-    callbacks=[checkpoint]
-)
-
+'''
 best_model = save_best_model(epochs, MODEL_OUTPUT_DIRECTORY, 5, '.hdf5')
 
 logging.info(" Best model found: " + best_model)
@@ -340,3 +377,4 @@ model.save_weights(H5_OUTPUT)
 loss_history = history_callback.history["loss"]
 numpy_loss_history = np.array(loss_history)
 np.savetxt("loss_history.txt", numpy_loss_history, delimiter=',')
+'''

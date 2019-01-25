@@ -1,5 +1,5 @@
 SENSOR_DATA_DIRECTORY = 'C:/Users/Paperspace/project/torcscnn/training_data/'
-SENSOR_CSV_FILE = 'collated_sensor_data.csv'
+SENSOR_CSV_FILE = 'collated_sensor_data/collated_sensor_data.csv'
 
 # [-STEERING_BOUNDARY < x < STEERING_BOUNDARY] determines whether image with steering angle 'x'
 # is categorized as driving straight
