@@ -1,5 +1,6 @@
 from comet_ml import Experiment
 from keras.models import Sequential
+import keras.backend as backend
 
 import properties as properties
 import random as rand
@@ -16,9 +17,10 @@ from keras.layers.pooling import MaxPooling2D
 from keras.optimizers import Adam, SGD
 from keras.callbacks import Callback as KerasCallback
 from keras.callbacks import ModelCheckpoint
+import tensorflow as tf
 
-experiment = Experiment(api_key="OPsq7RrD8Dl7fz8ne26NxQkcD",
-                        project_name="general", workspace="derek-dorey")
+#experiment = Experiment(api_key="OPsq7RrD8Dl7fz8ne26NxQkcD",
+#                        project_name="general", workspace="derek-dorey")
 
 EDGE_DETECTION_GRAYSCALE = True
 
@@ -125,12 +127,13 @@ def load_images(steering_angles, image_files):
         if EDGE_DETECTION_GRAYSCALE:
 
             og_image = cv2.imread(IMAGE_DATA_DIRECTORY + current_image, cv2.IMREAD_GRAYSCALE)
+            normalized_image = np.subtract(np.divide(np.array(og_image).astype(np.float32), 255.0), 0.5)
 
-            #cv2.imshow("Grayscale Image", og_image)
+            #cv2.imshow("Normalized Image", normalized_image)
             #cv2.waitKey(0)
 
             try:
-                cropped_image = og_image[y_start:INPUT_IMAGE_HEIGHT, x_start:INPUT_IMAGE_WIDTH]
+                cropped_image = normalized_image[y_start:INPUT_IMAGE_HEIGHT, x_start:INPUT_IMAGE_WIDTH]
                 #cv2.imshow("Cropped Image", cropped_image)
                 #cv2.waitKey(0)
             except TypeError:
@@ -139,12 +142,12 @@ def load_images(steering_angles, image_files):
                 error_count += 1
                 continue
 
-            edge_image = cv2.Canny(cropped_image, 50, 150)
+            #edge_image = cv2.Canny(cropped_image, 50, 150)
 
             #cv2.imshow("Edge Detection", edge_image)
             #cv2.waitKey(0)
 
-            downsize_image = cv2.resize(edge_image, (0, 0), fx=0.5, fy=0.5)
+            downsize_image = cv2.resize(cropped_image, (0, 0), fx=0.5, fy=0.5)
 
             #cv2.imshow("Input", downsize_image)
             #cv2.waitKey(0)
@@ -273,6 +276,7 @@ model = Sequential([
     Dense(1)
 ])
 
+
 optimizer = Adam(lr=1e-4)
 
 model.compile(
@@ -281,7 +285,7 @@ model.compile(
     metrics=[]
 )
 
-
+'''
 def save_best_model(epoch, dir_path, num_ext, ext):
     tmp_file_name = os.listdir(dir_path)
     test = []
@@ -294,26 +298,53 @@ def save_best_model(epoch, dir_path, num_ext, ext):
     lowest = min(test)
 
     return str(lowest) + ext
-
+'''
 
 epochs = 30
 
-#class SaveModel(KerasCallback):
+#predicted vs actual
+'''
+class SaveModel(KerasCallback):
 
-#    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs={}):
 
-#        epoch += 1
+        epoch += 1
 
-#        if epoch > 29:
-#            with open('model-' + str(epoch) + '.json', 'w') as file:
-#                file.write(model.to_json())
-#                file.close()
+        if epoch > 29:
+            with open('model-' + str(epoch) + '.json', 'w') as file:
+                file.write(model.to_json())
+                file.close()
 
-#            model.save_weights('model-' + str(epoch) + '.h5')
+            model.save_weights('model-' + str(epoch) + '.h5')
+'''
 
 
-checkpoint = ModelCheckpoint(filepath=MODEL_OUTPUT_DIRECTORY + '/{val_loss:.4f}.hdf5',
-                             monitor='val_loss', verbose=0, save_best_only=True)
+class CollectOutputAndTarget(KerasCallback):
+    def __init__(self):
+        super(CollectOutputAndTarget, self).__init__()
+        self.targets = []  # collect y_true batches
+        self.outputs = []  # collect y_pred batches
+
+        # the shape of these 2 variables will change according to batch shape
+        # to handle the "last batch", specify `validate_shape=False`
+        self.var_y_true = tf.Variable(0., validate_shape=False)
+        self.var_y_pred = tf.Variable(0., validate_shape=False)
+
+    def on_batch_end(self, batch, logs=None):
+        # evaluate the variables and save them into lists
+        self.targets.append(backend.eval(self.var_y_true))
+        self.outputs.append(backend.eval(self.var_y_pred))
+        print(backend.eval(self.var_y_true))
+        print(backend.eval(self.var_y_pred))
+
+
+cbk = CollectOutputAndTarget()
+fetches = [tf.assign(cbk.var_y_true, model.targets[0], validate_shape=False),
+                tf.assign(cbk.var_y_pred, model.outputs[0], validate_shape=False)]
+model._function_kwargs = {'fetches': fetches}
+
+#checkpoint = ModelCheckpoint(filepath=MODEL_OUTPUT_DIRECTORY + '/{val_loss:.4f}.hdf5',
+#                             monitor='val_loss', verbose=0, save_best_only=True)
 #save_model = SaveModel()
 
 history_callback = model.fit(
@@ -321,9 +352,10 @@ history_callback = model.fit(
     y=np.array(steering_angles),
     epochs=epochs,
     validation_split=0.33,
-    callbacks=[checkpoint]
+    callbacks=[cbk]
 )
 
+'''
 best_model = save_best_model(epochs, MODEL_OUTPUT_DIRECTORY, 5, '.hdf5')
 
 logging.info(" Best model found: " + best_model)
@@ -336,7 +368,8 @@ with open(JSON_OUTPUT, 'w') as file:
     file.close()
 
 model.save_weights(H5_OUTPUT)
+'''
+#loss_history = history_callback.history["loss"]
 
-loss_history = history_callback.history["loss"]
-numpy_loss_history = np.array(loss_history)
-np.savetxt("loss_history.txt", numpy_loss_history, delimiter=',')
+#numpy_loss_history = np.array(loss_history)
+#np.savetxt("loss_history.txt", numpy_loss_history, delimiter=',')
