@@ -10,7 +10,7 @@ GENERATE_COLLATED_DATA = True
 LEFT_BOUNDARY = -0.5
 RIGHT_BOUNDARY = abs(LEFT_BOUNDARY)
 BIN_WIDTH = 0.01
-SAMPLE_CEILING = 100
+SAMPLE_CEILING = 300
 COLUMN_NAMES = ['Unnamed: 0', 'Unnamed: 0.1', '__doc__', '__init__', '__module__', 'accel', 'angle', 'brake', 'clutch',
                 'count', 'curLapTime', 'damage', 'distFromStart', 'distRaced', 'distToMiddle', 'focus', 'fps', 'fuel',
                 'gear', 'lastLapTime', 'posZ', 'racePos', 'rpm', 'speedX', 'speedY', 'speedZ', 'steer',
