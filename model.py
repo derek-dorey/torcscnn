@@ -135,8 +135,10 @@ def load_images(steering_angles, image_files):
             #cv2.imshow("Grayscale Image", og_image)
             #cv2.waitKey(0)
 
+            normalized_image = np.subtract(np.divide(np.array(og_image).astype(np.float32), 255.0), 0.5)
+
             try:
-                cropped_image = og_image[y_start:INPUT_IMAGE_HEIGHT, x_start:INPUT_IMAGE_WIDTH]
+                cropped_image = normalized_image[y_start:INPUT_IMAGE_HEIGHT, x_start:INPUT_IMAGE_WIDTH]
                 #cv2.imshow("Cropped Image", cropped_image)
                 #cv2.waitKey(0)
             except TypeError:
@@ -222,12 +224,13 @@ def load_images(steering_angles, image_files):
 steering_angles, image_paths = load_sensor_data()
 steering_angles, image_data = load_images(steering_angles, image_paths)
 
-p = {'lr': (0.0001, 0.001, 0.01),
-     'first_layer': [18, 24, 32],
+
+p = {'lr': [0.00001, 0.0001, 0.001],
+     'first_layer': [24, 32],
      'validation_split': [0.2, 0.33],
-     'batch_size': [16, 32, 48],
-     'epochs': [10, 15, 20],
-     'dropout': (0.35, 0.5, 0.65),
+     'batch_size': [32, 64],
+     'epochs': [30],
+     'dropout': [0.5, 0.6],
      'optimizer': [Adam],
      'loss': [mse],
      'last_activation': [tanh],
@@ -314,16 +317,8 @@ def torcs_model(img_data, steer_data, x_val, y_val, params):
 
 np_image_data = np.array(image_data)
 np_steering_angles = np.array(steering_angles)
-max = len(np_image_data)
 
-print('test')
 h = ta.Scan(np_image_data, np_steering_angles, params=p, model=torcs_model)
-
-h.data.head()
-
-print(h.peak_epochs_df)
-print(h.details)
-
 
 '''
 def save_best_model(epoch, dir_path, num_ext, ext):
