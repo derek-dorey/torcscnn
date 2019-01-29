@@ -2,19 +2,19 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 TALOS_DIRECTORY = 'C:/Users/Paperspace/project/Talos/'
-TALOS_CSV = 'N500_NORMALIZED_GRAYSCALE.csv'
-SORTED_CSV = 'SORTED_N500_NORMALIZED_GRAYSCALE.csv'
+TALOS_CSV = 'N500_NORMALIZED_GRAYSCALE_v2.csv'
+SORTED_CSV = 'SORTED_N500_NORMALIZED_GRAYSCALE_v2.csv'
 
 COLUMN_NAMES = ['Unnamed: 0', 'round_epochs', 'val_loss', 'loss', 'lr', 'first_layer', 'validation_split', 'batch_size',
                 'epochs', 'dropout', 'optimizer', 'loss', 'last_activation', 'weight_regulizer']
 
-GENERATE_SORTED_CSV = False
+GENERATE_SORTED_CSV = True
 
-LEARNING_RATE = False
+LEARNING_RATE = True
 FIRST_LAYER = False
 VALIDATION_SPLIT = False
 BATCH_SIZE = False
-DROPOUT = True
+DROPOUT = False
 
 talos_data = pd.read_csv(TALOS_DIRECTORY + TALOS_CSV)
 

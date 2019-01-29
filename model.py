@@ -225,12 +225,12 @@ steering_angles, image_paths = load_sensor_data()
 steering_angles, image_data = load_images(steering_angles, image_paths)
 
 
-p = {'lr': [0.00001, 0.0001, 0.001],
-     'first_layer': [24, 32],
-     'validation_split': [0.2, 0.33],
-     'batch_size': [32, 64],
+p = {'lr': [0.001, 0.01],
+     'first_layer': [32, 48],
+     'validation_split': [0.25, 0.33],
+     'batch_size': [64, 128],
      'epochs': [30],
-     'dropout': [0.5, 0.6],
+     'dropout': [0.45, 0.55],
      'optimizer': [Adam],
      'loss': [mse],
      'last_activation': [tanh],
