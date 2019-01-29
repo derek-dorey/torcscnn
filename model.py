@@ -224,7 +224,7 @@ model = Sequential([
 
     Reshape((160, 320, 1), input_shape=(160, 320)),
 
-    Conv2D(24, 8, padding='valid'),
+    Conv2D(48, 8, padding='valid'),
     MaxPooling2D(pool_size=(2, 2)),
     Dropout(0.5),
     Activation('relu'),
@@ -277,7 +277,7 @@ model = Sequential([
 ])
 
 
-optimizer = Adam(lr=1e-4)
+optimizer = Adam(lr=0.001)
 
 model.compile(
     optimizer=optimizer,
@@ -318,7 +318,7 @@ class SaveModel(KerasCallback):
             model.save_weights('model-' + str(epoch) + '.h5')
 '''
 
-
+'''
 class CollectOutputAndTarget(KerasCallback):
     def __init__(self):
         super(CollectOutputAndTarget, self).__init__()
@@ -342,17 +342,19 @@ cbk = CollectOutputAndTarget()
 fetches = [tf.assign(cbk.var_y_true, model.targets[0], validate_shape=False),
                 tf.assign(cbk.var_y_pred, model.outputs[0], validate_shape=False)]
 model._function_kwargs = {'fetches': fetches}
+'''
 
-#checkpoint = ModelCheckpoint(filepath=MODEL_OUTPUT_DIRECTORY + '/{val_loss:.4f}.hdf5',
-#                             monitor='val_loss', verbose=0, save_best_only=True)
+checkpoint = ModelCheckpoint(filepath=MODEL_OUTPUT_DIRECTORY + '/{val_loss:.4f}.hdf5',
+                             monitor='val_loss', verbose=0, save_best_only=True)
 #save_model = SaveModel()
 
 history_callback = model.fit(
     x=np.array(image_data),
     y=np.array(steering_angles),
     epochs=epochs,
+    batch_size=64,
     validation_split=0.33,
-    callbacks=[cbk]
+    callbacks=[checkpoint]
 )
 
 '''
@@ -369,7 +371,7 @@ with open(JSON_OUTPUT, 'w') as file:
 
 model.save_weights(H5_OUTPUT)
 '''
-#loss_history = history_callback.history["loss"]
+loss_history = history_callback.history["loss"]
 
-#numpy_loss_history = np.array(loss_history)
-#np.savetxt("loss_history.txt", numpy_loss_history, delimiter=',')
+numpy_loss_history = np.array(loss_history)
+np.savetxt("loss_history.txt", numpy_loss_history, delimiter=',')
