@@ -65,7 +65,7 @@ model = Sequential([
     Dense(1)
 ])
 
-model.load_weights(MODEL_OUTPUT_DIRECTORY + '/' + '0.0043.hdf5')
+model.load_weights(MODEL_OUTPUT_DIRECTORY + '/' + '0.0020.hdf5')
 
 with open(JSON_OUTPUT, 'w') as file:
     file.write(model.to_json())

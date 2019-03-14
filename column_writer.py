@@ -1,10 +1,10 @@
 import pandas as pd
 
-OG_CSV = 'Ruudskogen_Sensors.csv'
-IMAGE_FOLDER = 'Ruudskogen_Images'
-NEW_CSV = 'Ruudskogen_Sensors_modified.csv'
+OG_CSV = 'Ruudskogen_Recovery_Sensors.csv'
+IMAGE_FOLDER = 'Ruudskogen_Recovery_Images'
+NEW_CSV = 'Ruudskogen_Recovery_Sensors_modified.csv'
 
-sensor_data = pd.read_csv('C:/Users/Paperspace/project/torcscnn/sensor_data/' + OG_CSV)
+sensor_data = pd.read_csv('C:/Users/Paperspace/project/torcs-1.3.7/runtimed/' + OG_CSV)
 sensor_data.head()
 
 sensor_data.insert(loc=28, column='imageFolder', value=IMAGE_FOLDER, allow_duplicates=True)

@@ -277,7 +277,7 @@ model = Sequential([
 ])
 
 
-optimizer = Adam(lr=0.001)
+optimizer = Adam(lr=0.00075)
 
 model.compile(
     optimizer=optimizer,
@@ -300,7 +300,7 @@ def save_best_model(epoch, dir_path, num_ext, ext):
     return str(lowest) + ext
 '''
 
-epochs = 30
+epochs = 60
 
 #predicted vs actual
 '''

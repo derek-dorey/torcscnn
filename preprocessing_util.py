@@ -7,10 +7,10 @@ import numpy as np
 SINGLE_CSV = False
 GENERATE_AUGMENT_CANDIDATES = False
 GENERATE_COLLATED_DATA = True
-LEFT_BOUNDARY = -0.5
+LEFT_BOUNDARY = -0.7
 RIGHT_BOUNDARY = abs(LEFT_BOUNDARY)
-BIN_WIDTH = 0.01
-SAMPLE_CEILING = 500
+BIN_WIDTH = 0.004
+SAMPLE_CEILING = 300
 COLUMN_NAMES = ['Unnamed: 0', 'Unnamed: 0.1', '__doc__', '__init__', '__module__', 'accel', 'angle', 'brake', 'clutch',
                 'count', 'curLapTime', 'damage', 'distFromStart', 'distRaced', 'distToMiddle', 'focus', 'fps', 'fuel',
                 'gear', 'lastLapTime', 'posZ', 'racePos', 'rpm', 'speedX', 'speedY', 'speedZ', 'steer',
